@@ -1,0 +1,1226 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>家計簿</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+html, body { height:100%; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", sans-serif;
+  background:#F2F2F7; color:#000000;
+  overscroll-behavior-y:none;
+  -webkit-text-size-adjust:100%;
+}
+button { font-family:inherit; border:none; background:none; cursor:pointer; }
+input, select { font-family:inherit; }
+
+/* ===== ヘッダー ===== */
+.header {
+  position:fixed; top:0; left:0; right:0; z-index:50;
+  background:rgba(242,242,247,0.85);
+  -webkit-backdrop-filter:saturate(180%) blur(20px);
+  backdrop-filter:saturate(180%) blur(20px);
+  border-bottom:0.5px solid rgba(60,60,67,0.29);
+  padding-top:env(safe-area-inset-top);
+}
+.header-row { position:relative; display:flex; align-items:center; justify-content:space-between; padding:12px 16px; }
+.month-nav { display:flex; align-items:center; gap:2px; }
+.month-nav .arrow { color:#007AFF; font-size:19px; font-weight:600; padding:2px 8px; line-height:1; }
+.month-title { font-size:17px; font-weight:700; letter-spacing:-0.2px; }
+.header-title { position:absolute; left:50%; transform:translateX(-50%); font-size:17px; font-weight:700; }
+.income-btn { color:#007AFF; font-size:16px; font-weight:600; padding:2px 0; }
+
+/* ===== 本文 ===== */
+.app { display:none; }
+.app.show { display:block; }
+.page { display:none; padding:0 16px 110px; padding-bottom:calc(110px + env(safe-area-inset-bottom)); }
+.page.active { display:block; }
+.content-spacer { height:calc(62px + env(safe-area-inset-top)); }
+
+.banner { margin-top:14px; border-radius:14px; padding:12px 14px; font-size:13px; line-height:1.5; display:flex; align-items:center; gap:10px; }
+.banner.local { background:#FFF3D6; color:#7A5B00; }
+.banner.cloud { background:#E3F4E5; color:#1E7A36; }
+.banner.warn { background:#FFE3E0; color:#9A2A20; }
+.banner .b-emoji { font-size:18px; }
+
+/* ===== ヒーローカード ===== */
+.hero { background:#0A7AFF; border-radius:22px; padding:22px 20px 20px; color:#FFFFFF; margin-top:14px; margin-bottom:22px; box-shadow:0 6px 18px rgba(10,122,255,0.28); }
+.hero-label { font-size:14px; font-weight:500; color:rgba(255,255,255,0.75); }
+.hero-total { font-size:42px; font-weight:800; letter-spacing:-1px; margin:2px 0 12px; }
+.hero-diff { display:inline-block; background:rgba(0,0,40,0.28); border-radius:16px; padding:6px 14px; font-size:14px; font-weight:600; margin-bottom:16px; }
+.hero-sub { display:flex; gap:12px; }
+.hero-cell { flex:1; background:rgba(255,255,255,0.16); border-radius:14px; padding:12px 14px; }
+.hero-cell .lbl { font-size:13px; color:rgba(255,255,255,0.75); margin-bottom:2px; }
+.hero-cell .val { font-size:22px; font-weight:700; letter-spacing:-0.4px; }
+.hero-cell .val.minus { color:#FFD3CF; }
+
+.section-label { font-size:15px; font-weight:600; color:#3C3C43; margin:0 2px 10px; }
+
+/* ===== 支出カード ===== */
+.cat-card { background:#FFFFFF; border-radius:16px; margin-bottom:12px; overflow:hidden; box-shadow:0 1px 3px rgba(0,0,0,0.05); }
+.cat-main { display:flex; align-items:center; gap:13px; padding:16px 16px; }
+.cat-icon { width:48px; height:48px; border-radius:12px; display:flex; align-items:center; justify-content:center; font-size:25px; flex-shrink:0; }
+.cat-info { flex:1; min-width:0; }
+.cat-name { font-size:17px; font-weight:700; }
+.cat-diff { font-size:14px; font-weight:600; margin-top:2px; display:flex; align-items:center; flex-wrap:wrap; gap:6px; }
+.diff-up { color:#FF3B30; }
+.diff-down { color:#34C759; }
+.diff-zero { color:#8E8E93; }
+.tag-extotal { font-size:11px; font-weight:600; color:#8E8E93; background:#F2F2F7; padding:2px 7px; border-radius:7px; }
+.cat-right { text-align:right; flex-shrink:0; }
+.cat-total { font-size:21px; font-weight:800; letter-spacing:-0.4px; }
+.cat-actions { margin-top:4px; display:flex; gap:18px; justify-content:flex-end; }
+.cat-actions button { font-size:14px; font-weight:500; }
+.btn-edit { color:#007AFF; }
+.btn-del { color:#FF3B30; }
+.cat-items { display:none; border-top:0.5px solid rgba(60,60,67,0.13); }
+.cat-card.open .cat-items { display:block; }
+.item-row { display:flex; align-items:center; gap:8px; padding:10px 16px; border-bottom:0.5px solid rgba(60,60,67,0.1); }
+.item-name { flex:1; font-size:15px; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.item-pin { font-size:12px; margin-right:2px; }
+.yen-mark { font-size:13px; color:#8E8E93; }
+.item-amount { width:104px; text-align:right; font-size:16px; font-weight:500; border:none; background:transparent; color:#000000; padding:4px 0; outline:none; }
+.item-amount:focus { border-bottom:2px solid #007AFF; }
+.item-amount::placeholder { color:#C7C7CC; }
+.item-amount.pinned { color:#0A7AFF; }
+.item-menu-btn { color:#C7C7CC; font-size:16px; padding:2px 4px; line-height:1; }
+.add-item-btn { display:block; width:100%; padding:12px 16px; color:#007AFF; font-size:15px; font-weight:500; text-align:left; }
+.chevron { color:#C7C7CC; font-size:14px; margin-left:2px; transition:transform 0.2s; display:inline-block; }
+.cat-card.open .chevron { transform:rotate(90deg); }
+.add-cat-btn { display:block; width:100%; background:#FFFFFF; border-radius:16px; padding:15px; margin:4px 0 14px; color:#007AFF; font-size:16px; font-weight:600; text-align:center; box-shadow:0 1px 3px rgba(0,0,0,0.05); }
+
+/* ===== タブバー ===== */
+.tabbar { position:fixed; bottom:0; left:0; right:0; z-index:50; display:flex; background:rgba(249,249,249,0.88); -webkit-backdrop-filter:saturate(180%) blur(20px); backdrop-filter:saturate(180%) blur(20px); border-top:0.5px solid rgba(60,60,67,0.29); padding-bottom:env(safe-area-inset-bottom); }
+.tab { flex:1; display:flex; flex-direction:column; align-items:center; gap:3px; padding:8px 0 6px; color:#999999; font-size:10px; font-weight:500; }
+.tab.active { color:#0A7AFF; }
+.tab svg { width:25px; height:25px; }
+
+/* ===== スキャン ===== */
+.scan-hero { background:#FFFFFF; border-radius:16px; padding:30px 20px; text-align:center; margin-top:14px; margin-bottom:14px; box-shadow:0 1px 3px rgba(0,0,0,0.05); }
+.scan-hero p { font-size:14px; color:#8E8E93; margin-top:12px; line-height:1.6; }
+.scan-hero p.err { color:#B3261E; font-weight:600; }
+.scan-btn { display:inline-flex; align-items:center; gap:8px; background:#0A7AFF; color:#FFFFFF; font-size:16px; font-weight:700; padding:14px 28px; border-radius:14px; box-shadow:0 4px 12px rgba(10,122,255,0.3); }
+.scan-btn:active { opacity:0.75; }
+.scan-btn.gray { background:#8E8E93; box-shadow:none; }
+.scan-btn svg { width:22px; height:22px; }
+.scan-preview-img { width:100%; border-radius:16px; margin:14px 0; display:block; }
+.scan-status { text-align:center; padding:20px; color:#8E8E93; font-size:15px; }
+.spinner { width:26px; height:26px; margin:0 auto 10px; border:3px solid #E5E5EA; border-top-color:#0A7AFF; border-radius:50%; animation:spin 0.8s linear infinite; }
+@keyframes spin { to { transform:rotate(360deg); } }
+.scan-result-row { display:flex; align-items:center; gap:8px; padding:10px 16px; border-top:0.5px solid rgba(60,60,67,0.13); }
+.scan-result-row select { border:none; background:#F2F2F7; border-radius:8px; font-size:13px; padding:6px 8px; color:#3C3C43; max-width:104px; }
+.scan-result-row .rname { flex:1; font-size:14px; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.scan-result-row .ramount { font-size:15px; font-weight:700; }
+.scan-result-row .rdel { color:#FF3B30; font-size:17px; padding:2px 6px; }
+.scan-head { padding:14px 16px 10px; font-size:15px; font-weight:700; }
+.apply-btn { display:block; width:100%; background:#34C759; color:#FFFFFF; font-size:16px; font-weight:700; padding:15px; border-radius:14px; margin-top:14px; box-shadow:0 4px 12px rgba(52,199,89,0.3); }
+.cancel-link { display:block; width:100%; text-align:center; color:#FF3B30; font-size:15px; padding:14px; margin-top:4px; }
+.notice { font-size:12px; color:#8E8E93; text-align:center; padding:6px 10px 16px; line-height:1.5; }
+
+/* ===== グラフ ===== */
+.chip-row { display:flex; gap:8px; overflow-x:auto; padding:2px 0 10px; -webkit-overflow-scrolling:touch; scrollbar-width:none; }
+.chip-row:first-of-type { margin-top:14px; }
+.chip-row::-webkit-scrollbar { display:none; }
+.chip { flex-shrink:0; padding:8px 15px; border-radius:18px; background:#FFFFFF; color:#3C3C43; font-size:14px; font-weight:500; white-space:nowrap; box-shadow:0 1px 2px rgba(0,0,0,0.05); }
+.chip.active { background:#0A7AFF; color:#FFFFFF; }
+.chart-card { background:#FFFFFF; border-radius:16px; padding:18px 14px 12px; box-shadow:0 1px 3px rgba(0,0,0,0.05); }
+.chart-title { font-size:16px; font-weight:700; margin-bottom:2px; }
+.chart-sub { font-size:12px; color:#8E8E93; margin-bottom:16px; }
+.chart-area { display:flex; align-items:flex-end; justify-content:space-around; height:190px; gap:6px; }
+.bar-col { flex:1; display:flex; flex-direction:column; align-items:center; justify-content:flex-end; height:100%; max-width:64px; }
+.bar-val { font-size:10px; color:#8E8E93; margin-bottom:4px; font-weight:600; white-space:nowrap; }
+.bar { width:72%; min-height:2px; border-radius:6px 6px 0 0; background:#D1D1D6; transition:height 0.35s ease; }
+.bar.current { background:#0A7AFF; }
+.bar-label { font-size:11px; color:#8E8E93; margin-top:6px; white-space:nowrap; }
+.chart-empty { text-align:center; color:#8E8E93; font-size:14px; padding:48px 0; }
+
+/* ===== 履歴 ===== */
+.hist-card { background:#FFFFFF; border-radius:16px; margin-top:14px; overflow:hidden; box-shadow:0 1px 3px rgba(0,0,0,0.05); }
+.hist-row { display:flex; align-items:center; gap:10px; width:100%; padding:14px 16px; text-align:left; border-bottom:0.5px solid rgba(60,60,67,0.1); }
+.hist-row:last-child { border-bottom:none; }
+.hist-month { font-size:16px; font-weight:600; flex:1; }
+.hist-vals { text-align:right; }
+.hist-out { font-size:16px; font-weight:700; }
+.hist-bal { font-size:12px; font-weight:600; margin-top:1px; }
+.hist-bal.plus { color:#34C759; }
+.hist-bal.minus { color:#FF3B30; }
+.hist-chev { color:#C7C7CC; font-size:15px; }
+
+/* ===== 設定 ===== */
+.set-card { background:#FFFFFF; border-radius:16px; margin-top:14px; overflow:hidden; box-shadow:0 1px 3px rgba(0,0,0,0.05); }
+.set-row { display:flex; align-items:center; gap:10px; width:100%; padding:15px 16px; text-align:left; border-bottom:0.5px solid rgba(60,60,67,0.1); font-size:16px; }
+.set-row:last-child { border-bottom:none; }
+.set-row .sr-label { flex:1; }
+.set-row .sr-val { color:#8E8E93; font-size:14px; }
+.set-row.action .sr-label { color:#007AFF; }
+.set-row.action.danger .sr-label { color:#FF3B30; }
+.set-note { font-size:12px; color:#8E8E93; padding:8px 6px 0; line-height:1.5; }
+.code-box { background:#FFFFFF; border-radius:16px; margin-top:14px; padding:18px 16px; text-align:center; box-shadow:0 1px 3px rgba(0,0,0,0.05); }
+.code-box .cb-label { font-size:13px; color:#8E8E93; margin-bottom:8px; }
+.code-box .cb-code { font-size:22px; font-weight:800; letter-spacing:1px; word-break:break-all; color:#0A7AFF; }
+.code-box .cb-copy { margin-top:12px; display:inline-block; background:#0A7AFF; color:#FFFFFF; font-size:15px; font-weight:600; padding:10px 22px; border-radius:12px; }
+
+/* ===== 認証画面 ===== */
+.auth-screen { position:fixed; inset:0; z-index:300; background:#F2F2F7; display:none; padding:0 24px; padding-top:calc(env(safe-area-inset-top) + 8vh); overflow-y:auto; }
+.auth-screen.show { display:block; }
+.auth-logo { text-align:center; font-size:54px; margin-bottom:6px; }
+.auth-app-name { text-align:center; font-size:26px; font-weight:800; margin-bottom:4px; }
+.auth-tagline { text-align:center; font-size:14px; color:#8E8E93; margin-bottom:30px; line-height:1.5; }
+.auth-box { background:#FFFFFF; border-radius:18px; padding:6px 16px; box-shadow:0 1px 3px rgba(0,0,0,0.06); margin-bottom:16px; }
+.auth-field { display:flex; flex-direction:column; padding:12px 0; border-bottom:0.5px solid rgba(60,60,67,0.13); }
+.auth-field:last-child { border-bottom:none; }
+.auth-field label { font-size:12px; color:#8E8E93; margin-bottom:4px; }
+.auth-field input { font-size:17px; border:none; outline:none; background:transparent; padding:2px 0; }
+.auth-primary { display:block; width:100%; background:#0A7AFF; color:#FFFFFF; font-size:17px; font-weight:700; padding:15px; border-radius:14px; margin-bottom:12px; box-shadow:0 4px 12px rgba(10,122,255,0.3); }
+.auth-primary:active { opacity:0.8; }
+.auth-primary.green { background:#34C759; box-shadow:0 4px 12px rgba(52,199,89,0.3); }
+.auth-primary[disabled] { opacity:0.5; box-shadow:none; }
+.auth-switch { text-align:center; font-size:15px; color:#007AFF; padding:8px; }
+.auth-error { color:#FF3B30; font-size:14px; text-align:center; min-height:20px; margin-bottom:8px; line-height:1.4; }
+.auth-or { text-align:center; color:#8E8E93; font-size:13px; margin:14px 0; }
+.auth-loading { text-align:center; padding-top:18vh; color:#8E8E93; }
+
+/* ===== モーダル ===== */
+.overlay { position:fixed; inset:0; z-index:100; background:rgba(0,0,0,0.4); opacity:0; pointer-events:none; transition:opacity 0.25s; }
+.overlay.show { opacity:1; pointer-events:auto; }
+.sheet { position:fixed; left:0; right:0; bottom:0; z-index:101; transform:translateY(105%); transition:transform 0.3s cubic-bezier(0.32,0.72,0,1); padding:0 10px; padding-bottom:calc(10px + env(safe-area-inset-bottom)); }
+.sheet.show { transform:translateY(0); }
+.sheet-group { background:rgba(249,249,249,0.95); border-radius:14px; overflow:hidden; margin-bottom:8px; -webkit-backdrop-filter:blur(20px); backdrop-filter:blur(20px); }
+.sheet-title { padding:13px; text-align:center; font-size:13px; color:#8E8E93; border-bottom:0.5px solid rgba(60,60,67,0.29); }
+.sheet-btn { display:block; width:100%; padding:17px; text-align:center; font-size:19px; color:#007AFF; border-bottom:0.5px solid rgba(60,60,67,0.29); }
+.sheet-btn:last-child { border-bottom:none; }
+.sheet-btn.destructive { color:#FF3B30; }
+.sheet-btn.cancel { font-weight:600; background:#FFFFFF; border-radius:14px; }
+.dialog { position:fixed; top:50%; left:50%; z-index:101; transform:translate(-50%,-50%) scale(1.08); opacity:0; pointer-events:none; transition:all 0.18s ease; width:280px; background:rgba(249,249,249,0.96); border-radius:14px; -webkit-backdrop-filter:blur(20px); backdrop-filter:blur(20px); overflow:hidden; }
+.dialog.show { transform:translate(-50%,-50%) scale(1); opacity:1; pointer-events:auto; }
+.dialog-body { padding:18px 16px 14px; text-align:center; }
+.dialog-body h3 { font-size:17px; font-weight:600; margin-bottom:8px; }
+.dialog-body p { font-size:13px; color:#3C3C43; margin-bottom:10px; line-height:1.45; }
+.dialog-body input { width:100%; padding:9px 10px; font-size:15px; border:0.5px solid rgba(60,60,67,0.36); border-radius:8px; background:#FFFFFF; outline:none; }
+.dialog-actions { display:flex; border-top:0.5px solid rgba(60,60,67,0.29); }
+.dialog-actions button { flex:1; padding:13px; font-size:17px; color:#007AFF; }
+.dialog-actions button + button { border-left:0.5px solid rgba(60,60,67,0.29); font-weight:600; }
+.dialog-actions button.destructive { color:#FF3B30; }
+.toast { position:fixed; bottom:100px; left:50%; transform:translateX(-50%) translateY(16px); z-index:400; background:rgba(40,40,44,0.92); color:#FFFFFF; font-size:14px; padding:10px 20px; border-radius:20px; opacity:0; pointer-events:none; transition:all 0.3s; white-space:nowrap; }
+.toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
+</style>
+</head>
+<body>
+
+<!-- ===== 認証画面 ===== -->
+<div class="auth-screen" id="authScreen">
+  <div class="auth-logo">📒</div>
+  <div class="auth-app-name">家計簿</div>
+  <div class="auth-tagline" id="authTagline">ログインして夫婦で共有</div>
+  <div id="authError" class="auth-error"></div>
+  <div id="authForms"></div>
+</div>
+
+<!-- ===== アプリ本体 ===== -->
+<div class="app" id="app">
+  <div class="header">
+    <div class="header-row">
+      <div class="month-nav">
+        <button class="arrow" onclick="changeMonth(-1)">‹</button>
+        <div class="month-title" id="monthTitle"></div>
+        <button class="arrow" onclick="changeMonth(1)">›</button>
+      </div>
+      <div class="header-title">家計簿</div>
+      <button class="income-btn" onclick="editIncome()">収入+</button>
+    </div>
+  </div>
+
+  <!-- 今月 -->
+  <div class="page active" id="page-input">
+    <div class="content-spacer"></div>
+    <div id="bannerHost"></div>
+    <div class="hero">
+      <div class="hero-label">今月の支出合計</div>
+      <div class="hero-total" id="heroTotal">¥0</div>
+      <div class="hero-diff" id="heroDiff">先月比 ±¥0</div>
+      <div class="hero-sub">
+        <div class="hero-cell"><div class="lbl">収入</div><div class="val" id="heroIncome">¥0</div></div>
+        <div class="hero-cell"><div class="lbl">収支</div><div class="val" id="heroBalance">¥0</div></div>
+      </div>
+    </div>
+    <div class="section-label">支出</div>
+    <div id="catList"></div>
+    <button class="add-cat-btn" onclick="addCategory()">＋ 大項目を追加</button>
+  </div>
+
+  <!-- スキャン -->
+  <div class="page" id="page-scan">
+    <div class="content-spacer"></div>
+    <div id="scanHome">
+      <div class="scan-hero">
+        <button class="scan-btn" onclick="document.getElementById('camInput').click()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+          家計簿を撮影
+        </button>
+        <p>手書きの家計簿をカメラで撮影すると<br>AIが項目・金額・給料を読み取って<br>自動入力します。反映前に修正できます。</p>
+      </div>
+      <div id="scanKeyNotice"></div>
+      <div class="notice">※ 反映先は上のヘッダーで選択中の月です</div>
+    </div>
+    <input type="file" id="camInput" accept="image/*" capture="environment" style="display:none" onchange="onPhotoPicked(this)">
+    <div id="scanWork" style="display:none"></div>
+  </div>
+
+  <!-- グラフ -->
+  <div class="page" id="page-chart">
+    <div class="content-spacer"></div>
+    <div class="chip-row" id="chipCats"></div>
+    <div class="chip-row" id="chipItems"></div>
+    <div class="chart-card">
+      <div class="chart-title" id="chartTitle">—</div>
+      <div class="chart-sub">過去6ヶ月の推移</div>
+      <div class="chart-area" id="chartArea"></div>
+    </div>
+  </div>
+
+  <!-- 履歴 -->
+  <div class="page" id="page-hist">
+    <div class="content-spacer"></div>
+    <div class="hist-card" id="histList"></div>
+  </div>
+
+  <!-- 共有・設定 -->
+  <div class="page" id="page-set">
+    <div class="content-spacer"></div>
+    <div id="setBody"></div>
+  </div>
+
+  <div class="tabbar">
+    <button class="tab active" id="tab-input" onclick="switchTab('input')">
+      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 3l9 8h-3v9h-4v-6H10v6H6v-9H3z"/></svg>今月
+    </button>
+    <button class="tab" id="tab-scan" onclick="switchTab('scan')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>スキャン
+    </button>
+    <button class="tab" id="tab-chart" onclick="switchTab('chart')">
+      <svg viewBox="0 0 24 24" fill="currentColor"><rect x="4" y="11" width="3.6" height="9" rx="1"/><rect x="10.2" y="4" width="3.6" height="16" rx="1"/><rect x="16.4" y="13" width="3.6" height="7" rx="1"/></svg>グラフ
+    </button>
+    <button class="tab" id="tab-hist" onclick="switchTab('hist')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l3.5 2"/></svg>履歴
+    </button>
+    <button class="tab" id="tab-set" onclick="switchTab('set')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-7 8-7s8 3 8 7"/></svg>共有
+    </button>
+  </div>
+</div>
+
+<!-- モーダル -->
+<div class="overlay" id="overlay" onclick="closeModals()"></div>
+<div class="sheet" id="sheet"></div>
+<div class="dialog" id="dialog"></div>
+<div class="toast" id="toast"></div>
+
+<!-- ========================================================= -->
+<!-- 1) Firebase 設定（SETUP.md の手順で値を貼り替える）        -->
+<!-- ========================================================= -->
+<script>
+window.FIREBASE_CONFIG = {
+  apiKey:            "PASTE_API_KEY",
+  authDomain:        "PASTE_PROJECT.firebaseapp.com",
+  projectId:         "PASTE_PROJECT_ID",
+  storageBucket:     "PASTE_PROJECT.appspot.com",
+  messagingSenderId: "PASTE_SENDER_ID",
+  appId:             "PASTE_APP_ID"
+};
+window.CLOUD_ENABLED = !String(window.FIREBASE_CONFIG.apiKey).startsWith("PASTE_");
+</script>
+
+<!-- ========================================================= -->
+<!-- 2) アプリ本体 -->
+<!-- ========================================================= -->
+<script>
+"use strict";
+
+var STORAGE_KEY = "kakeibo_v4";
+var APIKEY_STORAGE = "kakeibo_anthropic_key";   // この端末のみ。クラウドには同期しない
+var memStore = {};
+function lsGet(k){ try { return localStorage.getItem(k); } catch(e){ return memStore[k] || null; } }
+function lsSet(k,v){ memStore[k]=v; try { if(v===null) localStorage.removeItem(k); else localStorage.setItem(k,v); } catch(e){} }
+
+/* ---- グローバル状態 ---- */
+var ICON_BG = ["#FFEFD8","#FFF6D6","#E3F4E5","#E3EDFF","#F3E5FF","#FFE3EA","#E0F5F8","#F0EAE0"];
+var ICON_POOL = ["💳","💴","💰","🐷","🍱","💡","🚃","📱","🏠","🎮","🧾","🛒"];
+var state = null;
+var curMonth = monthKey(new Date());
+var chartCatId = "ALL";
+var chartItemId = "TOTAL";
+var openCats = {};
+var uidSeq = 0;
+
+var mode = window.CLOUD_ENABLED ? "cloud" : "local";
+var householdId = null;
+var currentUser = null;
+var lastSerialized = "";
+var saveTimer = null;
+
+function uid(){ return Date.now().toString(36) + "_" + (uidSeq++); }
+function monthKey(d){ return d.getFullYear() + "-" + String(d.getMonth()+1).padStart(2,"0"); }
+function shiftMonth(key, n){ var p=key.split("-"); var d=new Date(parseInt(p[0],10), parseInt(p[1],10)-1+n, 1); return monthKey(d); }
+function monthLabel(key){ var p=key.split("-"); return p[0]+"年"+parseInt(p[1],10)+"月"; }
+function monthShort(key){ var p=key.split("-"); return parseInt(p[1],10)+"月"; }
+function yen(n){ return "¥"+Math.round(n).toLocaleString("ja-JP"); }
+function yenAbs(n){ return "¥"+Math.abs(Math.round(n)).toLocaleString("ja-JP"); }
+
+function defaultState(){
+  function cat(name, icon, items, opts){
+    var c = { id:uid(), name:name, icon:icon, items:items.map(function(nm){ return {id:uid(), name:nm}; }) };
+    if(opts && opts.excludeTotal) c.excludeTotal = true;
+    return c;
+  }
+  return {
+    categories: [
+      cat("通帳",     "💳", ["家賃","ガス","保険","携帯"]),
+      cat("通帳以外", "💴", ["水道","親","社長","ももあ分","お小遣い"]),
+      cat("貯金",     "💰", ["車貯金","貯金"]),
+      cat("ももあ",   "🐷", [], { excludeTotal:true })
+    ],
+    amounts: {},   // { "2026-06": { itemId: number } } ※固定中の上書きは0も保存される
+    income: {},    // { "2026-06": number }
+    pins: {}       // { itemId: { amount: number, from: "2026-06" } }
+  };
+}
+function migrate(st){
+  if (!st.amounts) st.amounts = {};
+  if (!st.income) st.income = {};
+  if (!st.categories) st.categories = [];
+  if (!st.pins) st.pins = {};
+  st.categories.forEach(function(c, i){
+    if (!c.icon) c.icon = ICON_POOL[i % ICON_POOL.length];
+    if (c.name === "貯金" && (c.icon === "🐷" || c.icon === "🐖")) c.icon = "💰";
+    if (c.name === "ももあ" && (c.icon === "🐶" || c.icon === "🐕")) c.icon = "🐷";
+    if (c.excludeTotal === undefined && c.name === "ももあ") c.excludeTotal = true;
+    if (!c.items) c.items = [];
+  });
+  return st;
+}
+
+/* ---- 永続化 ---- */
+function loadLocalState(){
+  /* v4 → 旧バージョン(v3/v2)の順でデータを引き継ぐ */
+  var keys = [STORAGE_KEY, "kakeibo_v3", "kakeibo_v2"];
+  for (var i=0;i<keys.length;i++){
+    var raw = lsGet(keys[i]);
+    if (raw){
+      try { state = migrate(JSON.parse(raw)); if(i>0) save(); return; } catch(e){}
+    }
+  }
+  state = defaultState();
+}
+function save(){
+  lsSet(STORAGE_KEY, JSON.stringify(state));
+  if (mode === "cloud" && householdId && window.Cloud){
+    lastSerialized = JSON.stringify(state);
+    if (saveTimer) clearTimeout(saveTimer);
+    saveTimer = setTimeout(function(){
+      window.Cloud.saveHousehold(householdId, state).catch(function(){ toast("保存に失敗しました(通信)"); });
+    }, 600);
+  }
+}
+
+/* ---- 金額の解決（固定対応） ----
+   優先順位: その月の明示入力（0含む） > 固定（from以降） > 0 */
+function explicitAmount(mk, id){
+  var m = state.amounts[mk];
+  return (m && typeof m[id] === "number") ? m[id] : null;
+}
+function isPinActive(mk, id){
+  var p = state.pins[id];
+  return !!(p && mk >= p.from);
+}
+function effAmount(mk, id){
+  var ex = explicitAmount(mk, id);
+  if (ex !== null) return ex;
+  var p = state.pins[id];
+  if (p && mk >= p.from) return p.amount;
+  return 0;
+}
+function setAmount(mk, id, val){
+  if(!state.amounts[mk]) state.amounts[mk] = {};
+  if (val > 0) state.amounts[mk][id] = val;
+  else if (isPinActive(mk, id)) state.amounts[mk][id] = 0;   // 固定中は「0にした」ことも記録
+  else delete state.amounts[mk][id];
+  save();
+}
+function getIncome(mk){ return state.income[mk] || 0; }
+function catTotal(mk, cat){ var t=0; for(var i=0;i<cat.items.length;i++) t+=effAmount(mk, cat.items[i].id); return t; }
+function monthTotal(mk){
+  var t=0;
+  for(var i=0;i<state.categories.length;i++){
+    if (state.categories[i].excludeTotal) continue;   // ももあ等は支出合計に含めない
+    t += catTotal(mk, state.categories[i]);
+  }
+  return t;
+}
+function findCat(id){ for(var i=0;i<state.categories.length;i++) if(state.categories[i].id===id) return state.categories[i]; return null; }
+function findItem(cat, itemId){ for(var i=0;i<cat.items.length;i++) if(cat.items[i].id===itemId) return cat.items[i]; return null; }
+
+/* ---- 描画 ---- */
+function renderHeader(){ document.getElementById("monthTitle").textContent = monthLabel(curMonth); }
+
+function renderBanner(){
+  var host = document.getElementById("bannerHost");
+  if (mode === "cloud"){
+    host.innerHTML = '<div class="banner cloud"><span class="b-emoji">🔒</span><span>'
+      + escapeHtml(currentUser ? currentUser.email : "") + ' でログイン中。データは世帯メンバーだけに共有されます。</span></div>';
+  } else {
+    host.innerHTML = '<div class="banner local"><span class="b-emoji">📱</span><span>この端末だけに保存中です。ログイン・夫婦での共有は SETUP.md の手順で有効になります。</span></div>';
+  }
+}
+
+function renderHero(){
+  var cur = monthTotal(curMonth), prev = monthTotal(shiftMonth(curMonth,-1)), d = cur-prev;
+  document.getElementById("heroTotal").textContent = yen(cur);
+  var sign = d>0?"+":(d<0?"−":"±");
+  var pct = (prev>0 && d!==0) ? " ("+(d>=0?"+":"−")+Math.abs(Math.round(d/prev*100))+"%)" : "";
+  document.getElementById("heroDiff").textContent = "先月比 "+sign+yenAbs(d)+pct;
+  var inc = getIncome(curMonth), bal = inc-cur;
+  document.getElementById("heroIncome").textContent = yen(inc);
+  var b = document.getElementById("heroBalance");
+  b.textContent = (bal<0?"−":"")+yenAbs(bal);
+  b.className = "val"+(bal<0?" minus":"");
+}
+
+function renderInput(){
+  renderBanner();
+  renderHero();
+  var host = document.getElementById("catList");
+  host.innerHTML = "";
+  var prevKey = shiftMonth(curMonth,-1);
+  state.categories.forEach(function(cat, ci){
+    var card = document.createElement("div");
+    card.className = "cat-card"+(openCats[cat.id]?" open":"");
+    var main = document.createElement("div");
+    main.className = "cat-main";
+    var ct = catTotal(curMonth, cat), pt = catTotal(prevKey, cat), d = ct-pt;
+    var dcls = d>0?"diff-up":(d<0?"diff-down":"diff-zero");
+    var dtxt = (d>0?"+":d<0?"−":"±")+yenAbs(d);
+
+    var icon = document.createElement("div");
+    icon.className = "cat-icon"; icon.style.background = ICON_BG[ci%ICON_BG.length]; icon.textContent = cat.icon;
+    var info = document.createElement("div"); info.className = "cat-info";
+    var nm = document.createElement("div"); nm.className = "cat-name"; nm.textContent = cat.name;
+    var chev = document.createElement("span"); chev.className = "chevron"; chev.textContent = "›"; nm.appendChild(chev);
+    var df = document.createElement("div"); df.className = "cat-diff";
+    var dspan = document.createElement("span"); dspan.className = dcls; dspan.textContent = dtxt;
+    df.appendChild(dspan);
+    if (cat.excludeTotal){
+      var tag = document.createElement("span"); tag.className = "tag-extotal"; tag.textContent = "合計対象外";
+      df.appendChild(tag);
+    }
+    info.appendChild(nm); info.appendChild(df);
+    var right = document.createElement("div"); right.className = "cat-right";
+    var tot = document.createElement("div"); tot.className = "cat-total"; tot.textContent = yen(ct);
+    var acts = document.createElement("div"); acts.className = "cat-actions";
+    var be = document.createElement("button"); be.className="btn-edit"; be.textContent="編集";
+    be.onclick = function(ev){ ev.stopPropagation(); catMenu(cat.id); };
+    var bd = document.createElement("button"); bd.className="btn-del"; bd.textContent="削除";
+    bd.onclick = function(ev){ ev.stopPropagation(); deleteCategory(cat.id); };
+    acts.appendChild(be); acts.appendChild(bd);
+    right.appendChild(tot); right.appendChild(acts);
+    main.appendChild(icon); main.appendChild(info); main.appendChild(right);
+    main.onclick = function(){ openCats[cat.id]=!openCats[cat.id]; card.classList.toggle("open", !!openCats[cat.id]); };
+    card.appendChild(main);
+
+    var box = document.createElement("div"); box.className = "cat-items";
+    cat.items.forEach(function(item){
+      var row = document.createElement("div"); row.className = "item-row";
+      var inm = document.createElement("div"); inm.className = "item-name";
+      var pinned = isPinActive(curMonth, item.id);
+      if (pinned){
+        var pinMark = document.createElement("span"); pinMark.className="item-pin"; pinMark.textContent="📌";
+        inm.appendChild(pinMark);
+      }
+      inm.appendChild(document.createTextNode(item.name));
+      var ym = document.createElement("span"); ym.className = "yen-mark"; ym.textContent = "¥";
+      var inp = document.createElement("input");
+      inp.className="item-amount"+(pinned && explicitAmount(curMonth,item.id)===null ? " pinned" : "");
+      inp.type="text"; inp.inputMode="numeric"; inp.placeholder="0";
+      var v = effAmount(curMonth, item.id);
+      inp.value = v ? v.toLocaleString("ja-JP") : "";
+      inp.onfocus = function(){ inp.value = v ? String(v) : ""; };
+      inp.onblur = function(){ var n=parseInt(String(inp.value).replace(/[^0-9]/g,""),10); if(isNaN(n))n=0; setAmount(curMonth,item.id,n); v=n; renderInput(); };
+      inp.onkeydown = function(ev){ if(ev.key==="Enter") inp.blur(); };
+      var menu = document.createElement("button"); menu.className="item-menu-btn"; menu.textContent="⋯";
+      menu.onclick = function(){ itemMenu(cat.id, item.id); };
+      row.appendChild(inm); row.appendChild(ym); row.appendChild(inp); row.appendChild(menu);
+      box.appendChild(row);
+    });
+    var add = document.createElement("button"); add.className="add-item-btn"; add.textContent="＋ 小項目を追加";
+    add.onclick = function(){ addItem(cat.id); };
+    box.appendChild(add);
+    card.appendChild(box);
+    host.appendChild(card);
+  });
+}
+
+function renderHist(){
+  var host = document.getElementById("histList");
+  host.innerHTML = "";
+  for (var i=0;i<12;i++){
+    (function(){
+      var mk = shiftMonth(curMonth, -i);
+      var out = monthTotal(mk), bal = getIncome(mk)-out;
+      var row = document.createElement("button"); row.className="hist-row";
+      var m = document.createElement("div"); m.className="hist-month"; m.textContent = monthLabel(mk);
+      var vals = document.createElement("div"); vals.className="hist-vals";
+      var o = document.createElement("div"); o.className="hist-out"; o.textContent = yen(out);
+      var b = document.createElement("div"); b.className="hist-bal "+(bal>=0?"plus":"minus"); b.textContent = "収支 "+(bal<0?"−":"+")+yenAbs(bal);
+      vals.appendChild(o); vals.appendChild(b);
+      var ch = document.createElement("div"); ch.className="hist-chev"; ch.textContent="›";
+      row.appendChild(m); row.appendChild(vals); row.appendChild(ch);
+      row.onclick = function(){ curMonth = mk; renderAll(); switchTab("input"); };
+      host.appendChild(row);
+    })();
+  }
+}
+
+function renderAll(){ renderHeader(); renderInput(); renderChart(); renderHist(); renderSet(); renderScanKeyNotice(); }
+
+/* ---- 収入 ---- */
+function editIncome(){
+  var cur = getIncome(curMonth);
+  promptDialog(monthLabel(curMonth)+"の収入(給料)", "例: 308000", cur?String(cur):"", function(v){
+    var n = parseInt(String(v).replace(/[^0-9]/g,""),10); if(isNaN(n))n=0;
+    state.income[curMonth]=n; save(); renderAll();
+  });
+}
+
+/* ---- 月切替 / タブ ---- */
+function changeMonth(n){ curMonth = shiftMonth(curMonth, n); renderAll(); }
+function switchTab(name){
+  ["input","scan","chart","hist","set"].forEach(function(t){
+    document.getElementById("page-"+t).classList.toggle("active", t===name);
+    document.getElementById("tab-"+t).classList.toggle("active", t===name);
+  });
+  if(name==="chart") renderChart();
+  if(name==="hist") renderHist();
+  if(name==="set") renderSet();
+  if(name==="scan") renderScanKeyNotice();
+}
+
+/* ---- ダイアログ / シート ---- */
+function showOverlay(){ document.getElementById("overlay").classList.add("show"); }
+function closeModals(){ document.getElementById("overlay").classList.remove("show"); document.getElementById("sheet").classList.remove("show"); document.getElementById("dialog").classList.remove("show"); }
+function promptDialog(title, ph, init, onOk){
+  var dlg = document.getElementById("dialog");
+  dlg.innerHTML = '<div class="dialog-body"><h3></h3><input type="text" id="dlgInput"></div><div class="dialog-actions"><button id="dlgCancel">キャンセル</button><button id="dlgOk">OK</button></div>';
+  dlg.querySelector("h3").textContent = title;
+  var inp = document.getElementById("dlgInput"); inp.placeholder = ph||""; inp.value = init||"";
+  document.getElementById("dlgCancel").onclick = closeModals;
+  document.getElementById("dlgOk").onclick = function(){ var val=inp.value.trim(); if(!val)return; closeModals(); onOk(val); };
+  showOverlay(); dlg.classList.add("show"); setTimeout(function(){ inp.focus(); }, 300);
+}
+function confirmDialog(title, msg, okLabel, destructive, onOk){
+  var dlg = document.getElementById("dialog");
+  dlg.innerHTML = '<div class="dialog-body"><h3></h3><p></p></div><div class="dialog-actions"><button id="dlgCancel">キャンセル</button><button id="dlgOk"'+(destructive?' class="destructive"':'')+'></button></div>';
+  dlg.querySelector("h3").textContent = title; dlg.querySelector("p").textContent = msg;
+  document.getElementById("dlgOk").textContent = okLabel;
+  document.getElementById("dlgCancel").onclick = closeModals;
+  document.getElementById("dlgOk").onclick = function(){ closeModals(); onOk(); };
+  showOverlay(); dlg.classList.add("show");
+}
+function actionSheet(title, actions){
+  var sheet = document.getElementById("sheet");
+  var html = '<div class="sheet-group">';
+  if(title) html += '<div class="sheet-title">'+escapeHtml(title)+'</div>';
+  actions.forEach(function(a,i){ html += '<button class="sheet-btn'+(a.destructive?' destructive':'')+'" data-i="'+i+'">'+escapeHtml(a.label)+'</button>'; });
+  html += '</div><button class="sheet-btn cancel" id="sheetCancel">キャンセル</button>';
+  sheet.innerHTML = html;
+  sheet.querySelectorAll(".sheet-btn[data-i]").forEach(function(btn){ btn.onclick = function(){ closeModals(); actions[parseInt(btn.getAttribute("data-i"),10)].fn(); }; });
+  document.getElementById("sheetCancel").onclick = closeModals;
+  showOverlay(); sheet.classList.add("show");
+}
+function escapeHtml(s){ return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
+function toast(msg){ var t=document.getElementById("toast"); t.textContent=msg; t.classList.add("show"); setTimeout(function(){ t.classList.remove("show"); }, 2400); }
+
+/* ---- 項目操作 ---- */
+function addCategory(){
+  promptDialog("大項目を追加", "例: 教育費", "", function(name){
+    state.categories.push({ id:uid(), name:name, icon:ICON_POOL[state.categories.length%ICON_POOL.length], items:[] });
+    save(); renderAll();
+  });
+}
+function addItem(catId){
+  var cat = findCat(catId); if(!cat) return;
+  promptDialog("小項目を追加("+cat.name+")", "例: ガソリン", "", function(name){
+    cat.items.push({ id:uid(), name:name }); openCats[catId]=true; save(); renderAll();
+  });
+}
+function catMenu(catId){
+  var cat = findCat(catId); if(!cat) return;
+  actionSheet(cat.name, [
+    { label:"名前を変更", fn:function(){ promptDialog("大項目の名前","",cat.name,function(name){ cat.name=name; save(); renderAll(); }); } },
+    { label:"アイコンを変更", fn:function(){ promptDialog("絵文字を1つ入力","例: 🍱",cat.icon,function(v){ cat.icon=Array.from(v)[0]||cat.icon; save(); renderAll(); }); } },
+    { label: cat.excludeTotal ? "支出合計に含める" : "支出合計に含めない",
+      fn:function(){
+        cat.excludeTotal = !cat.excludeTotal;
+        save(); renderAll();
+        toast(cat.excludeTotal ? "「"+cat.name+"」を支出合計から除外しました" : "「"+cat.name+"」を支出合計に含めました");
+      } },
+    { label:"上へ移動", fn:function(){ moveCat(catId,-1); } },
+    { label:"下へ移動", fn:function(){ moveCat(catId,1); } }
+  ]);
+}
+function deleteCategory(catId){
+  var cat = findCat(catId); if(!cat) return;
+  confirmDialog("「"+cat.name+"」を削除", "中の小項目と過去の金額データもすべて削除されます。", "削除", true, function(){
+    cat.items.forEach(function(it){ deleteAmountsFor(it.id); });
+    state.categories = state.categories.filter(function(c){ return c.id!==catId; });
+    save(); renderAll();
+  });
+}
+function moveCat(catId, dir){
+  var idx = state.categories.findIndex(function(c){ return c.id===catId; });
+  var to = idx+dir; if(idx<0||to<0||to>=state.categories.length) return;
+  var tmp = state.categories[idx]; state.categories[idx]=state.categories[to]; state.categories[to]=tmp;
+  save(); renderAll();
+}
+function itemMenu(catId, itemId){
+  var cat = findCat(catId); if(!cat) return;
+  var item = findItem(cat, itemId); if(!item) return;
+  var pinned = isPinActive(curMonth, itemId);
+  var actions = [
+    { label:"名前を変更", fn:function(){ promptDialog("小項目の名前","",item.name,function(name){ item.name=name; save(); renderAll(); }); } }
+  ];
+  if (pinned){
+    var p = state.pins[itemId];
+    actions.push({ label:"固定解除（"+yen(p.amount)+"/月）", fn:function(){ unpinItem(itemId, item.name); } });
+  } else {
+    actions.push({ label:"固定（毎月この金額を自動入力）", fn:function(){ pinItem(itemId, item.name); } });
+  }
+  actions.push({ label:"削除", destructive:true, fn:function(){
+    confirmDialog("「"+item.name+"」を削除","過去の金額データもすべて削除されます。","削除",true,function(){
+      deleteAmountsFor(itemId);
+      cat.items = cat.items.filter(function(it){ return it.id!==itemId; });
+      save(); renderAll();
+    });
+  } });
+  actionSheet(cat.name+" › "+item.name + (pinned ? "（📌 固定中）" : ""), actions);
+}
+function pinItem(itemId, name){
+  var amt = effAmount(curMonth, itemId);
+  if (amt <= 0){ toast("先にこの月の金額を入力してから固定してください"); return; }
+  state.pins[itemId] = { amount: amt, from: curMonth };
+  save(); renderAll();
+  toast("📌 "+monthLabel(curMonth)+"以降、毎月"+yen(amt)+"で固定しました");
+}
+function unpinItem(itemId, name){
+  var p = state.pins[itemId]; if(!p) return;
+  confirmDialog("固定を解除", monthLabel(curMonth)+"までの金額はそのまま残り、来月以降は自動入力されなくなります。", "解除", false, function(){
+    /* 固定で表示されていた過去〜今月分を実データとして書き込んでから解除 */
+    var mk = p.from, guard = 0;
+    while (mk <= curMonth && guard < 600){
+      if (explicitAmount(mk, itemId) === null){
+        if(!state.amounts[mk]) state.amounts[mk] = {};
+        state.amounts[mk][itemId] = p.amount;
+      }
+      mk = shiftMonth(mk, 1); guard++;
+    }
+    delete state.pins[itemId];
+    save(); renderAll();
+    toast("固定を解除しました（来月以降は自動入力されません）");
+  });
+}
+function deleteAmountsFor(itemId){
+  Object.keys(state.amounts).forEach(function(mk){ delete state.amounts[mk][itemId]; });
+  delete state.pins[itemId];
+}
+
+/* =========================================================
+   スキャン
+   ========================================================= */
+var scanResults = [], scanIncome = null, scanImgUrl = null, scanB64 = null;
+
+function getApiKey(){ return lsGet(APIKEY_STORAGE) || ""; }
+function setApiKey(k){ lsSet(APIKEY_STORAGE, k ? k : null); }
+
+function renderScanKeyNotice(){
+  var host = document.getElementById("scanKeyNotice");
+  if (!host) return;
+  if (getApiKey()){
+    host.innerHTML = '<div class="banner cloud"><span class="b-emoji">🔑</span><span>APIキー設定済み。この端末でスキャンが使えます。</span></div>';
+  } else {
+    host.innerHTML = '<div class="banner warn"><span class="b-emoji">⚠️</span><span>GitHub Pages等で公開したアプリでは、<b>「共有」タブでAnthropic APIキーを設定しないとスキャンは動きません</b>（Claudeアプリ内プレビューではキー不要）。</span></div>';
+  }
+}
+
+function onPhotoPicked(input){
+  var file = input.files && input.files[0]; input.value="";
+  if(!file) return;
+  var reader = new FileReader();
+  reader.onload = function(){
+    var img = new Image();
+    img.onload = function(){
+      var maxSide=1568, scale=Math.min(1, maxSide/Math.max(img.width,img.height));
+      var c=document.createElement("canvas"); c.width=Math.round(img.width*scale); c.height=Math.round(img.height*scale);
+      c.getContext("2d").drawImage(img,0,0,c.width,c.height);
+      var dataUrl=c.toDataURL("image/jpeg",0.85);
+      scanImgUrl=dataUrl; scanB64=dataUrl.split(",")[1];
+      runOcr();
+    };
+    img.onerror = function(){ scanFail("写真を読み込めませんでした。別の写真でお試しください。", false); };
+    img.src = reader.result;
+  };
+  reader.onerror = function(){ scanFail("写真を読み込めませんでした。", false); };
+  reader.readAsDataURL(file);
+}
+
+function scanWorkEl(){ return document.getElementById("scanWork"); }
+function showScanWork(html){ document.getElementById("scanHome").style.display="none"; var w=scanWorkEl(); w.style.display="block"; w.innerHTML=html; }
+function resetScan(){ document.getElementById("scanHome").style.display="block"; scanWorkEl().style.display="none"; scanWorkEl().innerHTML=""; scanResults=[]; scanIncome=null; scanImgUrl=null; scanB64=null; renderScanKeyNotice(); }
+function catNamesForPrompt(){ return state.categories.map(function(c){ return "「"+c.name+"」("+c.items.map(function(it){ return it.name; }).join("、")+")"; }).join(" / "); }
+
+function scanFail(message, canRetrySameImage){
+  var retryBtn = canRetrySameImage
+    ? '<button class="scan-btn" onclick="runOcr()">もう一度読み取る</button><div style="height:10px"></div>'
+    : '';
+  showScanWork(
+    (scanImgUrl ? '<img class="scan-preview-img" src="'+scanImgUrl+'">' : '') +
+    '<div class="scan-hero"><p class="err">'+escapeHtml(message)+'</p>'+
+    '<div style="height:14px"></div>'+
+    retryBtn +
+    '<button class="scan-btn gray" onclick="document.getElementById(\'camInput\').click()">撮り直す</button></div>'+
+    '<button class="cancel-link" onclick="resetScan()">やめる</button>'
+  );
+}
+
+async function runOcr(){
+  if (!scanB64){ resetScan(); return; }
+  showScanWork('<img class="scan-preview-img" src="'+scanImgUrl+'"><div class="scan-status"><div class="spinner"></div>読み取り中…</div>');
+  var prompt =
+    "この画像は手書きの家計簿です。書かれている支出項目と金額をすべて読み取ってください。\n"+
+    "既存のカテゴリ構成: "+catNamesForPrompt()+"\n"+
+    "各項目を、紙の見出し(通帳/通帳以外/貯金など)に合わせてできるだけ既存の大項目に振り分けてください。\n"+
+    "「給料」または収入が書かれていれば income に数値で入れてください。なければ null。\n"+
+    "「合計」「支出合計」の行は items に含めないでください。\n"+
+    "金額は数字のみ(円)。読み取れない項目は含めないでください。\n"+
+    '必ず次のJSON形式のみで返答してください。前置きやMarkdownの```は一切不要です:\n'+
+    '{"items":[{"category":"大項目名","item":"小項目名","amount":1234}],"income":300000}';
+
+  var apiKey = getApiKey();
+  var headers = { "Content-Type": "application/json" };
+  if (apiKey){
+    headers["x-api-key"] = apiKey;
+    headers["anthropic-version"] = "2023-06-01";
+    headers["anthropic-dangerous-direct-browser-access"] = "true";
+  }
+
+  var response, data;
+  try {
+    response = await fetch("https://api.anthropic.com/v1/messages", {
+      method:"POST", headers: headers,
+      body: JSON.stringify({
+        model:"claude-sonnet-4-6",
+        max_tokens: apiKey ? 2000 : 1000,
+        messages:[{ role:"user", content:[ {type:"image", source:{type:"base64", media_type:"image/jpeg", data:scanB64}}, {type:"text", text:prompt} ] }]
+      })
+    });
+  } catch(e){
+    /* fetch自体の失敗 = 通信不可 or CORS（キー無しで外部公開環境から呼んだ場合が典型） */
+    if (!apiKey){
+      scanFail("この環境ではAPIキーが必要です。「共有」タブの「スキャン設定」でAnthropic APIキーを登録してください。", false);
+    } else {
+      scanFail("通信できませんでした。電波の良い場所でもう一度お試しください。", true);
+    }
+    return;
+  }
+
+  try { data = await response.json(); }
+  catch(e){ scanFail("サーバーの応答を読めませんでした。もう一度お試しください。", true); return; }
+
+  /* APIエラーの内容を具体的に表示 */
+  if (!response.ok || data.type === "error" || data.error){
+    var et = (data.error && data.error.type) || "";
+    if (response.status === 401 || et === "authentication_error"){
+      scanFail(apiKey ? "APIキーが正しくありません。「共有」タブで設定し直してください。" : "この環境ではAPIキーが必要です。「共有」タブで設定してください。", false);
+    } else if (response.status === 429 || et === "rate_limit_error"){
+      scanFail("利用回数の上限です。少し待ってからもう一度お試しください。", true);
+    } else if (response.status === 529 || et === "overloaded_error"){
+      scanFail("AIが混み合っています。少し待ってからもう一度お試しください。", true);
+    } else {
+      scanFail("エラーが発生しました（"+(et || response.status)+"）。もう一度お試しください。", true);
+    }
+    return;
+  }
+
+  try {
+    var text = (data.content||[]).map(function(c){ return c.type==="text"?c.text:""; }).join("\n");
+    if (data.stop_reason === "max_tokens"){
+      scanFail("項目が多く、読み取りが途中で切れました。紙を半分ずつ撮影してお試しください。", true);
+      return;
+    }
+    /* JSON部分だけを抜き出して解析（前置きが付いても耐える） */
+    var s = text.indexOf("{"), e = text.lastIndexOf("}");
+    if (s < 0 || e <= s) throw new Error("nojson");
+    var parsed = JSON.parse(text.slice(s, e+1));
+    var items = Array.isArray(parsed.items) ? parsed.items : [];
+    scanIncome = (typeof parsed.income==="number" && parsed.income>0) ? Math.round(parsed.income) : null;
+    scanResults = items.map(function(r){
+      var cat = state.categories.find(function(c){ return c.name===String(r.category||""); });
+      if(!cat) cat = state.categories[state.categories.length-1];
+      return { catId: cat?cat.id:null, itemName:String(r.item||"不明"), amount:Math.max(0, parseInt(r.amount,10)||0) };
+    }).filter(function(r){ return r.amount>0 && r.catId; });
+    if(!scanResults.length && scanIncome===null){
+      scanFail("金額の書かれた行を見つけられませんでした。数字がはっきり写るように撮影してください。", true);
+      return;
+    }
+    renderScanResults();
+  } catch(e){
+    scanFail("読み取り結果の解析に失敗しました。もう一度お試しください。", true);
+  }
+}
+
+function renderScanResults(){
+  showScanWork('<img class="scan-preview-img" src="'+scanImgUrl+'"><div class="cat-card"><div class="scan-head">読み取り結果('+monthLabel(curMonth)+'に反映)</div><div id="scanRows"></div></div><button class="apply-btn" onclick="applyScan()">この内容を反映する</button><button class="cancel-link" onclick="resetScan()">キャンセル</button><div class="notice">タップして大項目・金額を修正できます。同名の小項目がなければ自動で追加されます。</div>');
+  var rows = document.getElementById("scanRows");
+  if(scanIncome!==null){
+    var irow=document.createElement("div"); irow.className="scan-result-row";
+    irow.innerHTML='<div class="rname" style="font-weight:700">💰 給料(収入)</div>';
+    var iamt=document.createElement("div"); iamt.className="ramount"; iamt.textContent=yen(scanIncome);
+    iamt.onclick=function(){ promptDialog("給料を修正","",String(scanIncome),function(v){ var n=parseInt(String(v).replace(/[^0-9]/g,""),10); if(!isNaN(n)){ scanIncome=n; renderScanResults(); } }); };
+    var idel=document.createElement("button"); idel.className="rdel"; idel.textContent="✕"; idel.onclick=function(){ scanIncome=null; renderScanResults(); };
+    irow.appendChild(iamt); irow.appendChild(idel); rows.appendChild(irow);
+  }
+  scanResults.forEach(function(r, idx){
+    var row=document.createElement("div"); row.className="scan-result-row";
+    var sel=document.createElement("select");
+    state.categories.forEach(function(c){ var op=document.createElement("option"); op.value=c.id; op.textContent=c.name; if(c.id===r.catId) op.selected=true; sel.appendChild(op); });
+    sel.onchange=function(){ r.catId=sel.value; };
+    var nm=document.createElement("div"); nm.className="rname"; nm.textContent=r.itemName;
+    nm.onclick=function(){ promptDialog("小項目名を修正","",r.itemName,function(v){ r.itemName=v; renderScanResults(); }); };
+    var amt=document.createElement("div"); amt.className="ramount"; amt.textContent=yen(r.amount);
+    amt.onclick=function(){ promptDialog("金額を修正","",String(r.amount),function(v){ var n=parseInt(String(v).replace(/[^0-9]/g,""),10); if(!isNaN(n)){ r.amount=n; renderScanResults(); } }); };
+    var del=document.createElement("button"); del.className="rdel"; del.textContent="✕"; del.onclick=function(){ scanResults.splice(idx,1); renderScanResults(); };
+    row.appendChild(sel); row.appendChild(nm); row.appendChild(amt); row.appendChild(del); rows.appendChild(row);
+  });
+}
+function applyScan(){
+  var count=0;
+  scanResults.forEach(function(r){
+    var cat=findCat(r.catId); if(!cat) return;
+    var item=cat.items.find(function(it){ return it.name===r.itemName; });
+    if(!item){ item={id:uid(), name:r.itemName}; cat.items.push(item); }
+    setAmount(curMonth, item.id, effAmount(curMonth, item.id)+r.amount); count++;
+  });
+  if(scanIncome!==null){ state.income[curMonth]=scanIncome; count++; }
+  save(); resetScan(); renderAll(); switchTab("input");
+  toast(count+"件を"+monthLabel(curMonth)+"に反映しました");
+}
+
+/* =========================================================
+   グラフ（支出全体 + カテゴリ + 小項目）
+   ========================================================= */
+function renderChart(){
+  var chipCats = document.getElementById("chipCats");
+  var chipItems = document.getElementById("chipItems");
+  chipCats.innerHTML = ""; chipItems.innerHTML = "";
+
+  var allChip = document.createElement("button");
+  allChip.className = "chip"+(chartCatId==="ALL"?" active":"");
+  allChip.textContent = "📊 支出全体";
+  allChip.onclick = function(){ chartCatId="ALL"; chartItemId="TOTAL"; renderChart(); };
+  chipCats.appendChild(allChip);
+
+  state.categories.forEach(function(c){
+    var b=document.createElement("button");
+    b.className="chip"+(c.id===chartCatId?" active":"");
+    b.textContent=c.icon+" "+c.name;
+    b.onclick=function(){ chartCatId=c.id; chartItemId="TOTAL"; renderChart(); };
+    chipCats.appendChild(b);
+  });
+
+  var months=[]; for(var i=5;i>=0;i--) months.push(shiftMonth(curMonth,-i));
+  var values, title;
+
+  if(chartCatId==="ALL"){
+    chipItems.style.display = "none";
+    values = months.map(function(mk){ return monthTotal(mk); });
+    title = "📊 支出全体(月合計・合計対象外を除く)";
+  } else {
+    chipItems.style.display = "flex";
+    var cat = findCat(chartCatId);
+    if(!cat){ chartCatId="ALL"; renderChart(); return; }
+    var totalChip=document.createElement("button");
+    totalChip.className="chip"+(chartItemId==="TOTAL"?" active":"");
+    totalChip.textContent="合計";
+    totalChip.onclick=function(){ chartItemId="TOTAL"; renderChart(); };
+    chipItems.appendChild(totalChip);
+    cat.items.forEach(function(it){
+      var b=document.createElement("button");
+      b.className="chip"+(chartItemId===it.id?" active":"");
+      b.textContent=it.name;
+      b.onclick=function(){ chartItemId=it.id; renderChart(); };
+      chipItems.appendChild(b);
+    });
+    if(chartItemId!=="TOTAL" && !findItem(cat, chartItemId)) chartItemId="TOTAL";
+    values = months.map(function(mk){ return chartItemId==="TOTAL" ? catTotal(mk,cat) : effAmount(mk,chartItemId); });
+    title = chartItemId==="TOTAL" ? cat.icon+" "+cat.name+"(合計)"
+      : cat.icon+" "+cat.name+" › "+(findItem(cat, chartItemId)||{name:""}).name;
+  }
+
+  document.getElementById("chartTitle").textContent = title;
+  var max = Math.max.apply(null, values.concat([1]));
+  var area = document.getElementById("chartArea"); area.innerHTML = "";
+  if(values.every(function(v){ return v===0; })){ area.innerHTML='<div class="chart-empty">データがまだありません</div>'; return; }
+  months.forEach(function(mk, idx){
+    var col=document.createElement("div"); col.className="bar-col";
+    var val=document.createElement("div"); val.className="bar-val";
+    val.textContent = values[idx] ? (values[idx]>=10000 ? (Math.round(values[idx]/1000)/10)+"万" : values[idx].toLocaleString("ja-JP")) : "";
+    var bar=document.createElement("div"); bar.className="bar"+(mk===curMonth?" current":"");
+    bar.style.height = Math.round(values[idx]/max*145)+"px";
+    var lbl=document.createElement("div"); lbl.className="bar-label"; lbl.textContent=monthShort(mk);
+    col.appendChild(val); col.appendChild(bar); col.appendChild(lbl); area.appendChild(col);
+  });
+}
+
+/* =========================================================
+   共有・設定タブ
+   ========================================================= */
+function renderSet(){
+  var host = document.getElementById("setBody");
+  var keySet = !!getApiKey();
+  var scanSection =
+    '<div class="section-label" style="margin-top:22px">スキャン設定</div>'+
+    '<div class="set-card">'+
+      '<div class="set-row"><span class="sr-label">Anthropic APIキー</span><span class="sr-val">'+(keySet?"設定済み 🔑":"未設定")+'</span></div>'+
+      '<button class="set-row action" onclick="editApiKey()"><span class="sr-label">'+(keySet?"APIキーを変更":"APIキーを設定")+'</span></button>'+
+      (keySet?'<button class="set-row action danger" onclick="clearApiKey()"><span class="sr-label">APIキーを削除</span></button>':'')+
+    '</div>'+
+    '<div class="set-note">スキャン(AI読み取り)を公開アプリで使うために必要です。console.anthropic.com でキー(sk-ant-...)を発行し、ここに貼り付けてください。キーは<b>この端末の中だけ</b>に保存され、共有・同期はされません。妻のスマホでも使う場合はそちらでも設定してください。従量課金(1回あたり数円程度)が発生します。</div>';
+
+  if(mode === "local"){
+    host.innerHTML =
+      '<div class="banner local" style="margin-top:14px"><span class="b-emoji">📱</span><span>現在この端末だけに保存しています。ログインと夫婦での共有を有効にするには、SETUP.md の手順で Firebase を設定してください。</span></div>'+
+      scanSection;
+    return;
+  }
+  var inviteCode = householdId || "";
+  host.innerHTML =
+    '<div class="set-card">'+
+      '<div class="set-row"><span class="sr-label">ログイン中</span><span class="sr-val">'+escapeHtml(currentUser?currentUser.email:"")+'</span></div>'+
+      '<div class="set-row"><span class="sr-label">同期状態</span><span class="sr-val">🔒 安全に同期中</span></div>'+
+    '</div>'+
+    '<div class="section-label" style="margin-top:22px">夫婦で共有</div>'+
+    '<div class="code-box">'+
+      '<div class="cb-label">この招待コードを配偶者に伝えてください</div>'+
+      '<div class="cb-code">'+escapeHtml(inviteCode)+'</div>'+
+      '<button class="cb-copy" onclick="copyInvite()">コードをコピー</button>'+
+    '</div>'+
+    '<div class="set-note">配偶者は自分のアカウントでログイン後、「世帯に参加」でこのコードを入力すると同じ家計簿に参加できます。</div>'+
+    scanSection+
+    '<div class="set-card" style="margin-top:22px">'+
+      '<button class="set-row action" onclick="doSignOut()"><span class="sr-label">ログアウト</span></button>'+
+    '</div>';
+}
+function editApiKey(){
+  promptDialog("Anthropic APIキー", "sk-ant-...", getApiKey(), function(v){
+    if (v.indexOf("sk-ant-") !== 0){ toast("sk-ant- で始まるキーを入力してください"); return; }
+    setApiKey(v); renderAll(); toast("APIキーを保存しました（この端末のみ）");
+  });
+}
+function clearApiKey(){
+  confirmDialog("APIキーを削除", "この端末でスキャンが使えなくなります。", "削除", true, function(){
+    setApiKey(""); renderAll(); toast("APIキーを削除しました");
+  });
+}
+function copyInvite(){
+  var code = householdId || "";
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(code).then(function(){ toast("招待コードをコピーしました"); }, function(){ toast("コピーできませんでした"); });
+  } else { toast("コードを長押しでコピーしてください"); }
+}
+function doSignOut(){
+  confirmDialog("ログアウト", "ログアウトしますか？再度ログインすればデータはそのまま見られます。", "ログアウト", false, function(){
+    if(window.Cloud) window.Cloud.signOutUser();
+  });
+}
+
+/* =========================================================
+   認証画面（クラウドモード時）
+   ========================================================= */
+function showApp(){ document.getElementById("authScreen").classList.remove("show"); document.getElementById("app").classList.add("show"); }
+function showAuth(){ document.getElementById("app").classList.remove("show"); document.getElementById("authScreen").classList.add("show"); }
+function setAuthError(msg){ document.getElementById("authError").textContent = msg||""; }
+function renderAuthLoading(){
+  document.getElementById("authTagline").textContent = "";
+  document.getElementById("authForms").innerHTML = '<div class="auth-loading"><div class="spinner"></div>読み込み中…</div>';
+  setAuthError("");
+}
+function renderAuthSignIn(){
+  document.getElementById("authTagline").textContent = "ログインして夫婦で共有";
+  document.getElementById("authForms").innerHTML =
+    '<div class="auth-box">'+
+      '<div class="auth-field"><label>メールアドレス</label><input id="authEmail" type="email" autocomplete="email" inputmode="email" placeholder="you@example.com"></div>'+
+      '<div class="auth-field"><label>パスワード</label><input id="authPw" type="password" autocomplete="current-password" placeholder="6文字以上"></div>'+
+    '</div>'+
+    '<button class="auth-primary" id="authGo">ログイン</button>'+
+    '<div class="auth-switch" id="authToSignup">アカウントを作る</div>';
+  document.getElementById("authGo").onclick = function(){
+    var em=val("authEmail"), pw=val("authPw");
+    if(!em||!pw){ setAuthError("メールとパスワードを入力してください"); return; }
+    setAuthError(""); this.disabled=true; this.textContent="ログイン中…";
+    window.Cloud.signIn(em,pw).catch(function(e){ setAuthError(authMsg(e)); renderAuthSignIn(); });
+  };
+  document.getElementById("authToSignup").onclick = renderAuthSignUp;
+}
+function renderAuthSignUp(){
+  document.getElementById("authTagline").textContent = "新しくアカウントを作成";
+  document.getElementById("authForms").innerHTML =
+    '<div class="auth-box">'+
+      '<div class="auth-field"><label>メールアドレス</label><input id="authEmail" type="email" autocomplete="email" inputmode="email" placeholder="you@example.com"></div>'+
+      '<div class="auth-field"><label>パスワード</label><input id="authPw" type="password" autocomplete="new-password" placeholder="6文字以上"></div>'+
+    '</div>'+
+    '<button class="auth-primary green" id="authGo">アカウントを作成</button>'+
+    '<div class="auth-switch" id="authToSignin">ログインに戻る</div>';
+  document.getElementById("authGo").onclick = function(){
+    var em=val("authEmail"), pw=val("authPw");
+    if(!em||pw.length<6){ setAuthError("パスワードは6文字以上にしてください"); return; }
+    setAuthError(""); this.disabled=true; this.textContent="作成中…";
+    window.Cloud.signUp(em,pw).catch(function(e){ setAuthError(authMsg(e)); renderAuthSignUp(); });
+  };
+  document.getElementById("authToSignin").onclick = renderAuthSignIn;
+}
+function renderAuthHousehold(){
+  document.getElementById("authTagline").textContent = "家計簿を新しく作るか、配偶者の家計簿に参加";
+  document.getElementById("authForms").innerHTML =
+    '<button class="auth-primary" id="hhCreate">新しい家計簿を作る</button>'+
+    '<div class="auth-or">または</div>'+
+    '<div class="auth-box"><div class="auth-field"><label>招待コード（配偶者から受け取る）</label><input id="hhCode" type="text" placeholder="例: a1b2c3d4..."></div></div>'+
+    '<button class="auth-primary green" id="hhJoin">この世帯に参加する</button>';
+  document.getElementById("hhCreate").onclick = function(){
+    this.disabled=true; this.textContent="作成中…"; setAuthError("");
+    window.Cloud.createHousehold(defaultState()).catch(function(e){ setAuthError("作成に失敗しました"); renderAuthHousehold(); });
+  };
+  document.getElementById("hhJoin").onclick = function(){
+    var code=val("hhCode"); if(!code){ setAuthError("招待コードを入力してください"); return; }
+    this.disabled=true; this.textContent="参加中…"; setAuthError("");
+    window.Cloud.joinHousehold(code).catch(function(e){ setAuthError("参加できませんでした。コードを確認してください"); renderAuthHousehold(); });
+  };
+}
+function val(id){ var e=document.getElementById(id); return e ? e.value.trim() : ""; }
+function authMsg(e){
+  var c = e && e.code ? e.code : "";
+  if(c.indexOf("email-already-in-use")>=0) return "このメールは既に登録済みです。ログインしてください";
+  if(c.indexOf("invalid-email")>=0) return "メールアドレスの形式が正しくありません";
+  if(c.indexOf("wrong-password")>=0 || c.indexOf("invalid-credential")>=0) return "メールまたはパスワードが違います";
+  if(c.indexOf("user-not-found")>=0) return "アカウントが見つかりません。先に作成してください";
+  if(c.indexOf("weak-password")>=0) return "パスワードは6文字以上にしてください";
+  if(c.indexOf("network")>=0) return "通信エラーです。接続を確認してください";
+  return "エラーが発生しました";
+}
+
+/* ---- クラウド連携の受け口 ---- */
+window.onAuthState = function(user){
+  currentUser = user;
+  if(!user){ showAuth(); renderAuthSignIn(); return; }
+  showAuth(); renderAuthLoading();
+  window.Cloud.getHouseholdId().then(function(hid){
+    if(!hid){ renderAuthHousehold(); return; }
+    householdId = hid;
+    window.Cloud.watchHousehold(hid, function(data){ onRemoteData(data); });
+  }).catch(function(){ renderAuthHousehold(); });
+};
+window.onHouseholdReady = function(hid){
+  householdId = hid;
+  window.Cloud.watchHousehold(hid, function(data){ onRemoteData(data); });
+};
+function onRemoteData(data){
+  if(!data){ return; }
+  var incoming = JSON.stringify(data);
+  if(incoming === lastSerialized) return;
+  state = migrate(data);
+  lastSerialized = JSON.stringify(state);
+  showApp();
+  renderAll();
+}
+
+/* ---- 起動 ---- */
+function boot(){
+  if(mode === "local"){
+    loadLocalState();
+    showApp();
+    renderAll();
+  } else {
+    showAuth();
+    renderAuthLoading();
+    setTimeout(function(){
+      if(!window.Cloud){
+        mode = "local"; loadLocalState(); showApp(); renderAll();
+        toast("オフラインのためローカルモードで起動しました");
+      }
+    }, 8000);
+  }
+}
+boot();
+</script>
+
+<!-- ========================================================= -->
+<!-- 3) Firebase 連携（クラウドモード時のみ動作） -->
+<!-- ========================================================= -->
+<script type="module">
+if (window.CLOUD_ENABLED) {
+  try {
+    const { initializeApp } = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js");
+    const { getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut } =
+      await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js");
+    const { getFirestore, doc, getDoc, setDoc, updateDoc, onSnapshot, serverTimestamp, arrayUnion } =
+      await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js");
+
+    const app = initializeApp(window.FIREBASE_CONFIG);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+
+    function genId(){
+      const a = new Uint8Array(16); crypto.getRandomValues(a);
+      return Array.from(a).map(b => b.toString(16).padStart(2,"0")).join("");
+    }
+
+    window.Cloud = {
+      signUp: (email, pw) => createUserWithEmailAndPassword(auth, email, pw),
+      signIn: (email, pw) => signInWithEmailAndPassword(auth, email, pw),
+      signOutUser: () => signOut(auth),
+      getHouseholdId: async () => {
+        const u = auth.currentUser; if(!u) return null;
+        const snap = await getDoc(doc(db, "users", u.uid));
+        return snap.exists() ? (snap.data().householdId || null) : null;
+      },
+      createHousehold: async (initialData) => {
+        const u = auth.currentUser;
+        const hid = genId();
+        await setDoc(doc(db, "households", hid), { members: [u.uid], data: initialData, updatedAt: serverTimestamp() });
+        await setDoc(doc(db, "users", u.uid), { householdId: hid }, { merge: true });
+        window.onHouseholdReady(hid);
+        return hid;
+      },
+      joinHousehold: async (hid) => {
+        const u = auth.currentUser;
+        await updateDoc(doc(db, "households", hid), { members: arrayUnion(u.uid) });
+        await setDoc(doc(db, "users", u.uid), { householdId: hid }, { merge: true });
+        window.onHouseholdReady(hid);
+        return hid;
+      },
+      watchHousehold: (hid, cb) => {
+        return onSnapshot(doc(db, "households", hid), (snap) => {
+          if(snap.exists()) cb(snap.data().data);
+        }, (err) => { console.error(err); });
+      },
+      saveHousehold: (hid, data) => updateDoc(doc(db, "households", hid), { data: data, updatedAt: serverTimestamp() })
+    };
+
+    onAuthStateChanged(auth, (user) => { window.onAuthState(user); });
+  } catch (e) {
+    console.error("Firebase init failed:", e);
+  }
+}
+</script>
+</body>
+</html>
